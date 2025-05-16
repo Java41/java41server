@@ -14,7 +14,7 @@ services:
     networks:
       - quarkus-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U quarkus -d quarkus"]
+      test: [ "CMD-SHELL", "pg_isready -U quarkus -d quarkus" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,14 +27,53 @@ services:
       QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgresql:5432/quarkus
       QUARKUS_DATASOURCE_USERNAME: quarkus
       QUARKUS_DATASOURCE_PASSWORD: quarkus
-    ports:
-      - "8080:8080"
+      QUARKUS_HTTP_PROXY_ENABLE_FORWARDED_HEADERS: "true"
+    expose:
+      - "8080"
     depends_on:
       postgresql:
         condition: service_healthy
     networks:
       - quarkus-network
     restart: on-failure
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.quarkus-app-secure.rule=Host(`faruegonar.beget.app`)"
+      - "traefik.http.routers.quarkus-app-secure.entrypoints=websecure"
+      - "traefik.http.routers.quarkus-app-secure.tls=true"
+      - "traefik.http.routers.quarkus-app-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.quarkus-app-secure.service=quarkus-app-svc"
+      - "traefik.http.services.quarkus-app-svc.loadbalancer.server.port=8080"
+      - "traefik.http.routers.quarkus-app-http.rule=Host(`faruegonar.beget.app`)"
+      - "traefik.http.routers.quarkus-app-http.entrypoints=web"
+      - "traefik.http.routers.quarkus-app-http.middlewares=redirect-to-https@docker"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+  traefik:
+    image: "traefik:v3.4"
+    container_name: "traefik"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--certificatesresolvers.myresolver.acme.email=init220@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - quarkus-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
