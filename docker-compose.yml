@@ -14,7 +14,7 @@ services:
     networks:
       - quarkus-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U quarkus -d quarkus" ]
+      test: ["CMD-SHELL", "pg_isready -U quarkus -d quarkus"]
       interval: 5s
       timeout: 5s
       retries: 5
