@@ -54,6 +54,7 @@ services:
     image: "traefik:v3.4"
     container_name: "traefik"
     command:
+      - "--log.level=DEBUG"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
