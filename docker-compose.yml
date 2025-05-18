@@ -38,7 +38,7 @@ services:
     restart: on-failure
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.quarkus-app-secure.rule=Host(`faruegonar.beget.app`)"
+      - "traefik.http.routers.quarkus-app-secure.rule=Host(`faruegonar.beget.app`)&& PathPrefix(`/`, `/swagger-ui`, `/openapi`)"
       - "traefik.http.routers.quarkus-app-secure.entrypoints=websecure"
       - "traefik.http.routers.quarkus-app-secure.tls=true"
       - "traefik.http.routers.quarkus-app-secure.tls.certresolver=myresolver"
@@ -64,6 +64,12 @@ services:
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+    labels:
+      - "traefik.http.routers.swagger-ui.rule=Host(`faruegonar.beget.app`) && PathPrefix(`/swagger-ui`)"
+      - "traefik.http.routers.swagger-ui.entrypoints=websecure"
+      - "traefik.http.routers.swagger-ui.tls=true"
+      - "traefik.http.routers.swagger-ui.tls.certresolver=myresolver"
+      - "traefik.http.routers.swagger-ui.service=quarkus-app-svc"
     ports:
       - "80:80"
       - "443:443"
