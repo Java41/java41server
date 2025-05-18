@@ -10,8 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.*;
 
 @QuarkusTest
 public class AuthResourceTest {
@@ -39,7 +38,11 @@ public class AuthResourceTest {
                 .post("/auth/register")
                 .then()
                 .statusCode(201)
-                .body("message", is("Пользователь успешно зарегистрирован"));
+                .body("id", notNullValue())
+                .body("username", startsWith("@User"))
+                .body("email", is(registration.email))
+                .body("accessToken", notNullValue())
+                .body("refreshToken", notNullValue());
     }
 
     @Test
@@ -73,11 +76,9 @@ public class AuthResourceTest {
     @Test
     public void testRegisterMissingFields() {
         AuthDTO.Registration registration = new AuthDTO.Registration();
-        registration.email = null; // или ""
-        registration.password = null; // или ""
-        // birthdate может быть null, но в коде контроллера проверка на все три
+        registration.email = null;
+        registration.password = null;
         registration.birthdate = null;
-
 
         given()
                 .contentType(ContentType.JSON)
@@ -94,6 +95,7 @@ public class AuthResourceTest {
     public void testLoginSuccess() {
         String email = "loginuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
+
         // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
@@ -120,6 +122,9 @@ public class AuthResourceTest {
                 .post("/auth/login")
                 .then()
                 .statusCode(200)
+                .body("id", notNullValue())
+                .body("username", startsWith("@User"))
+                .body("email", is(email))
                 .body("accessToken", notNullValue())
                 .body("refreshToken", notNullValue());
     }
@@ -161,6 +166,7 @@ public class AuthResourceTest {
     public void testRefreshTokenSuccess() {
         String email = "refreshuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
+
         // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
@@ -200,6 +206,9 @@ public class AuthResourceTest {
                 .post("/auth/refresh")
                 .then()
                 .statusCode(200)
+                .body("id", notNullValue())
+                .body("username", startsWith("@User"))
+                .body("email", is(email))
                 .body("accessToken", notNullValue())
                 .body("refreshToken", notNullValue());
     }
@@ -239,6 +248,7 @@ public class AuthResourceTest {
     public void testLogoutSuccess() {
         String email = "logoutuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
+
         // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
@@ -292,7 +302,7 @@ public class AuthResourceTest {
                 .when()
                 .post("/auth/logout")
                 .then()
-                .statusCode(400) // Как определено в AuthResource
+                .statusCode(400)
                 .body("error", is("Invalid refresh token"));
     }
 
