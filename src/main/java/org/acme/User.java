@@ -8,6 +8,8 @@ import io.quarkus.security.jpa.UserDefinition;
 import io.quarkus.security.jpa.Username;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import java.util.Random;
 
 @Entity
 @Table(name = "app_users")
@@ -25,16 +27,37 @@ public class User extends PanacheEntity {
 
     public String birthdate;
 
+    @Column(unique = true)
+    public String username;
+
     public static void add(String email, String password, String roles, String birthdate) {
         User user = new User();
         user.email = email;
         user.password = BcryptUtil.bcryptHash(password);
         user.roles = roles;
         user.birthdate = birthdate;
+        user.username = generateUniqueUsername();
         user.persist();
     }
 
     public static User findByEmail(String email) {
         return find("email", email).firstResult();
+    }
+
+    public static User findByUsername(String username) {
+        return find("username", username).firstResult();
+    }
+
+    public static User findById(Long id) {
+        return find("id", id).firstResult();
+    }
+
+    private static String generateUniqueUsername() {
+        Random random = new Random();
+        String username;
+        do {
+            username = "@User" + random.nextInt(1000000);
+        } while (findByUsername(username) != null);
+        return username;
     }
 }
