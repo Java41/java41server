@@ -1,4 +1,4 @@
-package org.acme;
+package org.acme.controller;
 
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.smallrye.jwt.build.Jwt;
@@ -14,6 +14,9 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.acme.model.RefreshToken;
+import org.acme.dto.AuthDTO;
+import org.acme.model.User;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.Claims;
 import org.eclipse.microprofile.openapi.annotations.Operation;

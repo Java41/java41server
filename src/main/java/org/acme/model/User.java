@@ -1,4 +1,4 @@
-package org.acme;
+package org.acme.model;
 
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.quarkus.hibernate.orm.panache.PanacheEntity;

@@ -1,4 +1,4 @@
-package org.acme;
+package org.acme.controller;
 
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -8,8 +8,11 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.acme.dto.MessageDTO;
+import org.acme.model.Message;
+import org.acme.model.User;
+import org.acme.repository.MessageRepository;
 import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.media.*;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -26,6 +29,9 @@ import java.util.stream.Collectors;
 @Path("/messages")
 @Tag(name = "Messages", description = "Operations related to messages")
 public class MessageResource {
+
+    @Inject
+    MessageRepository messageRepository;
 
     @Inject
     SecurityContext securityContext;
@@ -73,12 +79,14 @@ public class MessageResource {
                     .build();
         }
 
-        Message message = Message.create(sender, recipient, messageData.content);
+        Message message = messageRepository.create(sender, recipient, messageData.content);
 
         MessageDTO.MessageResponse response = new MessageDTO.MessageResponse(
                 message.id,
                 sender.id,
+                sender.username,
                 recipient.id,
+                recipient.username,
                 message.content,
                 message.timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         );
@@ -122,16 +130,18 @@ public class MessageResource {
                         .entity("{\"error\":\"User not found\"}")
                         .build();
             }
-            messages = Message.findConversation(currentUser.id, otherUser.id);
+            messages = messageRepository.findConversation(currentUser.id, otherUser.id);
         } else {
-            messages = Message.findByParticipant(currentUser.id);
+            messages = messageRepository.findByParticipant(currentUser.id);
         }
 
         List<MessageDTO.MessageResponse> response = messages.stream()
                 .map(m -> new MessageDTO.MessageResponse(
                         m.id,
                         m.sender.id,
+                        m.sender.username,
                         m.recipient.id,
+                        m.recipient.username,
                         m.content,
                         m.timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                 ))

@@ -1,4 +1,4 @@
-package org.acme;
+package org.acme.dto;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 

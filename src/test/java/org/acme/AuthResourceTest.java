@@ -4,6 +4,9 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import jakarta.transaction.Transactional;
+import org.acme.dto.AuthDTO;
+import org.acme.model.RefreshToken;
+import org.acme.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

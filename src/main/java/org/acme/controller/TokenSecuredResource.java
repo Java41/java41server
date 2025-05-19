@@ -1,4 +1,4 @@
-package org.acme;
+package org.acme.controller;
 
 import jakarta.annotation.security.DenyAll;
 import jakarta.annotation.security.PermitAll;
