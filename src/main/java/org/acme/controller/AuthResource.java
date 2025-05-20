@@ -26,6 +26,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -62,11 +63,33 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "User login", description = "Authenticates a user and returns JWT and refresh tokens")
-    @APIResponse(responseCode = "200", description = "Successful login", content = @Content(schema = @Schema(implementation = UserInfo.class)))
-    @APIResponse(responseCode = "400", description = "Missing email or password")
-    @APIResponse(responseCode = "401", description = "Invalid credentials")
-    public Response login(@RequestBody(description = "Login credentials", required = true) AuthDTO.Login login) {
+    @Operation(
+            summary = "Аутентификация пользователя",
+            description = "Позволяет пользователю войти в систему, предоставив email и пароль. Возвращает JWT и refresh-токены для дальнейшего доступа к защищенным ресурсам."
+    )
+    @APIResponse(
+            responseCode = "200",
+            description = "Успешная аутентификация",
+            content = @Content(
+                    schema = @Schema(implementation = AuthResource.UserInfo.class),
+                    example = "{\"id\": 1, \"username\": \"@User123\", \"email\": \"user@example.com\", \"accessToken\": \"eyJhbG...\", \"refreshToken\": \"f47ac10b-58cc-...\"}"
+            )
+    )
+    @APIResponse(
+            responseCode = "400",
+            description = "Отсутствует email или пароль",
+            content = @Content(
+                    example = "{\"error\": \"Email и пароль обязательны\"}"
+            )
+    )
+    @APIResponse(
+            responseCode = "401",
+            description = "Неверные учетные данные",
+            content = @Content(
+                    example = "{\"error\": \"Неверные учетные данные\"}"
+            )
+    )
+    public Response login(@RequestBody(description = "Учетные данные для входа") AuthDTO.Login login) {
         if (login.email == null || login.password == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Email и пароль обязательны\"}")
@@ -94,11 +117,17 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "User registration", description = "Registers a new user and returns JWT and refresh tokens")
-    @APIResponse(responseCode = "201", description = "User successfully registered", content = @Content(schema = @Schema(implementation = UserInfo.class)))
-    @APIResponse(responseCode = "400", description = "Missing required fields")
-    @APIResponse(responseCode = "409", description = "Email already exists")
-    public Response register(@RequestBody(description = "Registration details", required = true) AuthDTO.Registration registration) {
+    @Operation(summary = "Регистрация пользователя", description = "Регистрирует нового пользователя и возвращает JWT и refresh токены")
+    @APIResponse(responseCode = "201", description = "Пользователь успешно зарегистрирован", content = @Content(schema = @Schema(implementation = UserInfo.class),
+            example = "{\"id\": 2, \"username\": \"@NewUser\", \"email\": \"newuser@example.com\", \"accessToken\": \"eyJhbG...\", \"refreshToken\": \"a1b2c3d4-e5f6-...\"}"
+    ))
+    @APIResponse(responseCode = "400", description = "Отсутствуют обязательные поля", content = @Content(
+            example = "{\"error\": \"Email, пароль и дата рождения обязательны\"}"
+    ))
+    @APIResponse(responseCode = "409", description = "Email уже существует", content = @Content(
+            example = "{\"error\": \"Пользователь с таким email уже существует\"}"
+    ))
+    public Response register(@RequestBody(description = "Данные для регистрации") AuthDTO.Registration registration) {
         if (registration.email == null || registration.password == null || registration.birthdate == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Email, пароль и дата рождения обязательны\"}")
@@ -131,11 +160,17 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "Refresh token", description = "Refreshes JWT using a valid refresh token")
-    @APIResponse(responseCode = "200", description = "New tokens issued", content = @Content(schema = @Schema(implementation = UserInfo.class)))
-    @APIResponse(responseCode = "400", description = "Missing refresh token")
-    @APIResponse(responseCode = "401", description = "Invalid or expired refresh token")
-    public Response refreshToken(@RequestBody(description = "Refresh token", required = true) AuthDTO.Refresh refresh) {
+    @Operation(summary = "Обновление токена", description = "Обновляет JWT с использованием действительного refresh токена")
+    @APIResponse(responseCode = "200", description = "Выданы новые токены", content = @Content(schema = @Schema(implementation = UserInfo.class),
+            example = "{\"id\": 1, \"username\": \"@User123\", \"email\": \"user@example.com\", \"accessToken\": \"eyJhbG...\", \"refreshToken\": \"f47ac10b-58cc-...\"}"
+    ))
+    @APIResponse(responseCode = "400", description = "Отсутствует refresh токен", content = @Content(
+            example = "{\"error\": \"Refresh token обязателен\"}"
+    ))
+    @APIResponse(responseCode = "401", description = "Недействительный или истекший refresh токен", content = @Content(
+            example = "{\"error\": \"Недействительный или истекший refresh token\"}"
+    ))
+    public Response refreshToken(@RequestBody(description = "Refresh токен") AuthDTO.Refresh refresh) {
         if (refresh.refreshToken == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Refresh token обязателен\"}")
@@ -172,10 +207,14 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "User logout", description = "Invalidates the refresh token")
-    @APIResponse(responseCode = "200", description = "Successfully logged out")
-    @APIResponse(responseCode = "400", description = "Missing or invalid refresh token")
-    public Response logout(@RequestBody(description = "Refresh token", required = true) AuthDTO.Refresh refresh) {
+    @Operation(summary = "Выход пользователя", description = "Аннулирует refresh токен")
+    @APIResponse(responseCode = "200", description = "Успешный выход", content = @Content(
+            example = "{\"message\": \"Logged out successfully\"}"
+    ))
+    @APIResponse(responseCode = "400", description = "Отсутствует или недействительный refresh токен", content = @Content(
+            example = "{\"error\": \"Invalid refresh token\"}"  // Или "Refresh token обязателен для выхода", в зависимости от логики
+    ))
+    public Response logout(@RequestBody(description = "Refresh токен") AuthDTO.Refresh refresh) {
         if (refresh.refreshToken == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Refresh token обязателен для выхода\"}")
@@ -197,12 +236,20 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "Update user email", description = "Updates the user's email address")
-    @APIResponse(responseCode = "200", description = "Email updated successfully", content = @Content(schema = @Schema(implementation = UserInfo.class)))
-    @APIResponse(responseCode = "400", description = "Missing email or password")
-    @APIResponse(responseCode = "401", description = "Invalid credentials")
-    @APIResponse(responseCode = "409", description = "Email already exists")
-    public Response updateEmail(@Context SecurityContext ctx, @RequestBody(description = "New email and password", required = true) AuthDTO.UpdateEmailDTO updateEmailDTO) {
+    @Operation(summary = "Обновление email пользователя", description = "Обновляет адрес электронной почты пользователя")
+    @APIResponse(responseCode = "200", description = "Email успешно обновлен", content = @Content(schema = @Schema(implementation = UserInfo.class),
+            example = "{\"id\": 1, \"username\": \"@User123\", \"email\": \"newemail@example.com\", \"accessToken\": \"eyJhbG...\", \"refreshToken\": \"f47ac10b-58cc-...\"}"
+    ))
+    @APIResponse(responseCode = "400", description = "Отсутствует email или пароль", content = @Content(
+            example = "{\"error\": \"Email и пароль обязательны\"}"
+    ))
+    @APIResponse(responseCode = "401", description = "Неверные учетные данные", content = @Content(
+            example = "{\"error\": \"Неверные учетные данные\"}"
+    ))
+    @APIResponse(responseCode = "409", description = "Email уже существует", content = @Content(
+            example = "{\"error\": \"Пользователь с таким email уже существует\"}"
+    ))
+    public Response updateEmail(@Context SecurityContext ctx, @RequestBody(description = "Новый email и пароль") AuthDTO.UpdateEmailDTO updateEmailDTO) {
         if (updateEmailDTO.email == null || updateEmailDTO.password == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Email и пароль обязательны\"}")
@@ -247,12 +294,20 @@ public class AuthResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    @Operation(summary = "Update username", description = "Updates the user's username")
-    @APIResponse(responseCode = "200", description = "Username updated successfully", content = @Content(schema = @Schema(implementation = UserInfo.class)))
-    @APIResponse(responseCode = "400", description = "Missing or invalid username")
-    @APIResponse(responseCode = "401", description = "Unauthorized")
-    @APIResponse(responseCode = "409", description = "Username already taken")
-    public Response updateUsername(@Context SecurityContext ctx, @RequestBody(description = "New username", required = true) AuthDTO.UpdateUsernameDTO updateUsernameDTO) {
+    @Operation(summary = "Обновление имени пользователя", description = "Обновляет имя пользователя")
+    @APIResponse(responseCode = "200", description = "Имя пользователя успешно обновлено", content = @Content(schema = @Schema(implementation = UserInfo.class),
+            example = "{\"id\": 1, \"username\": \"@NewUsername\", \"email\": \"user@example.com\", \"accessToken\": \"eyJhbG...\", \"refreshToken\": \"f47ac10b-58cc-...\"}"
+    ))
+    @APIResponse(responseCode = "400", description = "Отсутствует или недействительное имя пользователя", content = @Content(
+            example = "{\"error\": \"Username обязателен и должен начинаться с @\"}"
+    ))
+    @APIResponse(responseCode = "401", description = "Не авторизован", content = @Content(
+            example = "{\"error\": \"Пользователь не найден\"}"  // Или "Неверные учетные данные", в зависимости от логики
+    ))
+    @APIResponse(responseCode = "409", description = "Имя пользователя уже занято", content = @Content(
+            example = "{\"error\": \"Username уже занят\"}"
+    ))
+    public Response updateUsername(@Context SecurityContext ctx, @RequestBody(description = "Новое имя пользователя", required = true) AuthDTO.UpdateUsernameDTO updateUsernameDTO) {
         if (updateUsernameDTO.username == null || !updateUsernameDTO.username.startsWith("@")) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"Username обязателен и должен начинаться с @\"}")
@@ -292,6 +347,7 @@ public class AuthResource {
                 .claim(Claims.birthdate.name(), user.birthdate)
                 .claim("id", user.id)
                 .claim("username", user.username)
+                .issuedAt(Instant.now())
                 .expiresIn(900)
                 .sign();
     }
