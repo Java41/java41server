@@ -83,8 +83,22 @@ public class ContactListResource {
     @Operation(summary = "Получить список контактов", description = "Возвращает список контактов текущего пользователя.")
     @APIResponse(responseCode = "200", description = "Список контактов", content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = ContactDTO.class, type = SchemaType.ARRAY), example = "[{\"id\": 2, \"username\": \"@User456\", \"firstName\": \"Jane\", \"lastName\": \"Smith\", \"photoUrl\": \"https://example.com/photo2.jpg\"}]"))
     public List<ContactDTO> getContacts() {
-        String currentUserEmail = securityContext.getUserPrincipal().getName();
-        User currentUser = User.findByEmail(currentUserEmail);
+        String currentUserId = securityContext.getUserPrincipal().getName();
+        if (currentUserId == null || currentUserId.isBlank()) {
+            throw new WebApplicationException("Невалидный JWT-токен: отсутствует ID пользователя", Response.Status.UNAUTHORIZED);
+        }
+
+        long userId;
+        try {
+            userId = Long.parseLong(currentUserId);
+        } catch (NumberFormatException e) {
+            throw new WebApplicationException("Невалидный ID пользователя в токене", Response.Status.BAD_REQUEST);
+        }
+
+        User currentUser = User.findById(userId);
+        if (currentUser == null) {
+            throw new WebApplicationException("Пользователь не найден", Response.Status.NOT_FOUND);
+        }
 
         return contactRepository.findByOwner(currentUser.id)
                 .stream()
