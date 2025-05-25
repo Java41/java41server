@@ -60,11 +60,28 @@ public class UserProfileResource {
     @APIResponse(responseCode = "401", description = "Не авторизован или неверный пароль", content = @Content(example = "{\"error\": \"Неверные учетные данные\"}"))
     @APIResponse(responseCode = "409", description = "Email или username уже занят", content = @Content(example = "{\"error\": \"Пользователь с таким email уже существует\"}"))
     public Response patchProfile(@Context SecurityContext ctx, @RequestBody(description = "Поля профиля для обновления") PatchProfileDTO patchProfileDTO) {
-        String currentEmail = ctx.getUserPrincipal().getName();
-        User user = User.findByEmail(currentEmail);
+        String currentUserId = ctx.getUserPrincipal().getName(); // Получаем ID из sub
+        if (currentUserId == null || currentUserId.isBlank()) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Невалидный JWT-токен: отсутствует ID пользователя\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+
+        Long userId;
+        try {
+            userId = Long.parseLong(currentUserId);
+        } catch (NumberFormatException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Невалидный ID пользователя в токене\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+
+        User user = User.findById(userId);
         if (user == null) {
             return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("{\"error\":\"Пользователь не найден\"}")
+                    .entity("{\"error\": \"Пользователь не найден\"}")
                     .type(MediaType.APPLICATION_JSON)
                     .build();
         }
@@ -75,19 +92,19 @@ public class UserProfileResource {
         if (patchProfileDTO.email != null) {
             if (patchProfileDTO.password == null) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("{\"error\":\"Пароль обязателен для обновления email\"}")
+                        .entity("{\"error\": \"Пароль обязателен для обновления email\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
             if (!BcryptUtil.matches(patchProfileDTO.password, user.password)) {
                 return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity("{\"error\":\"Неверный пароль\"}")
+                        .entity("{\"error\": \"Неверный пароль\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
             if (User.findByEmail(patchProfileDTO.email) != null) {
                 return Response.status(Response.Status.CONFLICT)
-                        .entity("{\"error\":\"Пользователь с таким email уже существует\"}")
+                        .entity("{\"error\": \"Пользователь с таким email уже существует\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
@@ -99,13 +116,13 @@ public class UserProfileResource {
         if (patchProfileDTO.username != null) {
             if (!patchProfileDTO.username.startsWith("@") || patchProfileDTO.username.length() < 4 || patchProfileDTO.username.length() > 21) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("{\"error\":\"Username обязателен, должен начинаться с @ и содержать от 3 до 20 символов\"}")
+                        .entity("{\"error\": \"Username обязателен, должен начинаться с @ и содержать от 3 до 20 символов\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
             if (User.findByUsername(patchProfileDTO.username) != null) {
                 return Response.status(Response.Status.CONFLICT)
-                        .entity("{\"error\":\"Username уже занят\"}")
+                        .entity("{\"error\": \"Username уже занят\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
@@ -117,7 +134,7 @@ public class UserProfileResource {
         if (patchProfileDTO.firstName != null) {
             if (patchProfileDTO.firstName.length() > 50) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("{\"error\":\"Имя не должно превышать 50 символов\"}")
+                        .entity("{\"error\": \"Имя не должно превышать 50 символов\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
@@ -129,7 +146,7 @@ public class UserProfileResource {
         if (patchProfileDTO.lastName != null) {
             if (patchProfileDTO.lastName.length() > 50) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("{\"error\":\"Фамилия не должна превышать 50 символов\"}")
+                        .entity("{\"error\": \"Фамилия не должна превышать 50 символов\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
@@ -141,7 +158,7 @@ public class UserProfileResource {
         if (patchProfileDTO.photoUrl != null) {
             if (patchProfileDTO.photoUrl.length() > 255) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("{\"error\":\"URL фотографии не должен превышать 255 символов\"}")
+                        .entity("{\"error\": \"URL фотографии не должен превышать 255 символов\"}")
                         .type(MediaType.APPLICATION_JSON)
                         .build();
             }
@@ -153,7 +170,7 @@ public class UserProfileResource {
                 patchProfileDTO.firstName == null && patchProfileDTO.lastName == null &&
                 patchProfileDTO.photoUrl == null) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\":\"Укажите хотя бы одно поле для обновления\"}")
+                    .entity("{\"error\": \"Укажите хотя бы одно поле для обновления\"}")
                     .type(MediaType.APPLICATION_JSON)
                     .build();
         }
