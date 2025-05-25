@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "refresh_tokens")
 public class RefreshToken extends PanacheEntity {
     public String token;
-    public String email;
+    public Long userId;
     public LocalDateTime expiryDate;
 
     public static RefreshToken findByToken(String token) {

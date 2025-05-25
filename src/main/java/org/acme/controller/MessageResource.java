@@ -3,6 +3,7 @@ package org.acme.controller;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -39,50 +40,47 @@ public class MessageResource {
     @POST
     @Path("/")
     @RolesAllowed("User")
+    @Transactional
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Transactional
-    @Operation(
-            summary = "Отправка сообщения",
-            description = "Отправляет сообщение от текущего пользователя указанному получателю. Требуется JWT-токен в заголовке Authorization."
-    )
-    @APIResponse(
-            responseCode = "201",
-            description = "Сообщение успешно отправлено",
-            content = @Content(
-                    schema = @Schema(implementation = MessageDTO.MessageResponse.class),
-                    example = "{\"id\": 123, \"senderId\": 456, \"senderUsername\": \"@Sender\", \"recipientId\": 789, \"recipientUsername\": \"@Recipient\", \"content\": \"Привет!\", \"timestamp\": \"2024-01-26T14:30:00\"}"
-            )
-    )
-    @APIResponse(responseCode = "400", description = "Неверные данные запроса", content = @Content(
-            example = "{\"error\": \"Не указан ID получателя или текст сообщения\"}"
-    ))
-    @APIResponse(responseCode = "404", description = "Получатель не найден", content = @Content(
-            example = "{\"error\": \"Получатель не найден\"}"
-    ))
-    public Response sendMessage(
-            @RequestBody(
-                    description = "Данные сообщения",
-                    required = true,
-                    content = @Content(
-                            schema = @Schema(implementation = MessageDTO.CreateMessage.class)
-                    )
-            ) MessageDTO.CreateMessage messageData,
-            @Context SecurityContext securityContext) {
-
-        if (messageData.recipientId == null || messageData.content == null || messageData.content.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\":\"Recipient ID and message content are required\"}")
+    @Operation(summary = "Отправка сообщения", description = "Отправляет сообщение от текущего пользователя указанному получателю. Требуется JWT-токен в заголовке Authorization.")
+    @APIResponse(responseCode = "201", description = "Сообщение успешно отправлено", content = @Content(schema = @Schema(implementation = MessageDTO.MessageResponse.class), example = "{\"id\": 123, \"senderId\": 456, \"senderUsername\": \"@Sender\", \"recipientId\": 789, \"recipientUsername\": \"@Recipient\", \"content\": \"Привет!\", \"timestamp\": \"2024-01-26T14:30:00\"}"))
+    @APIResponse(responseCode = "400", description = "Неверные данные запроса", content = @Content(example = "{\"error\": \"Не указан ID получателя или текст сообщения\"}"))
+    @APIResponse(responseCode = "404", description = "Пользователь не найден", content = @Content(example = "{\"error\": \"Пользователь не найден\"}"))
+    public Response sendMessage(@Valid MessageDTO.CreateMessage messageData, @Context SecurityContext securityContext) {
+        String currentUserId = securityContext.getUserPrincipal().getName();
+        if (currentUserId == null || currentUserId.isBlank()) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Невалидный JWT-токен: отсутствует ID пользователя\"}")
                     .build();
         }
 
-        String senderEmail = securityContext.getUserPrincipal().getName();
-        User sender = User.findByEmail(senderEmail);
-        User recipient = User.findById(messageData.recipientId);
+        Long senderId;
+        try {
+            senderId = Long.parseLong(currentUserId);
+        } catch (NumberFormatException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Невалидный ID пользователя в токене\"}")
+                    .build();
+        }
 
+        User sender = User.findById(senderId);
+        if (sender == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Отправитель не найден\"}")
+                    .build();
+        }
+
+        if (messageData.recipientId == null || messageData.content == null || messageData.content.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Не указан ID получателя или текст сообщения\"}")
+                    .build();
+        }
+
+        User recipient = User.findById(messageData.recipientId);
         if (recipient == null) {
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\":\"Recipient not found\"}")
+                    .entity("{\"error\": \"Получатель не найден\"}")
                     .build();
         }
 
@@ -130,8 +128,13 @@ public class MessageResource {
             @QueryParam("since") @DefaultValue("1970-01-01T00:00:00") String since,
             @Context SecurityContext securityContext) {
 
-        String currentUserEmail = securityContext.getUserPrincipal().getName();
-        User currentUser = User.findByEmail(currentUserEmail);
+        String currentUserId = securityContext.getUserPrincipal().getName();
+        User currentUser = User.findById(Long.parseLong(currentUserId));
+        if (currentUser == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\":\"Пользователь не найден\"}")
+                    .build();
+        }
 
         LocalDateTime sinceTimestamp;
         try {

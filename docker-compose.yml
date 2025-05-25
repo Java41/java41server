@@ -38,13 +38,13 @@ services:
     restart: on-failure
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.quarkus-app-secure.rule=Host(`faruegonar.beget.app`)"
+      - "traefik.http.routers.quarkus-app-secure.rule=Host(`java41.ru`)"
       - "traefik.http.routers.quarkus-app-secure.entrypoints=websecure"
       - "traefik.http.routers.quarkus-app-secure.tls=true"
       - "traefik.http.routers.quarkus-app-secure.tls.certresolver=myresolver"
       - "traefik.http.routers.quarkus-app-secure.service=quarkus-app-svc"
       - "traefik.http.services.quarkus-app-svc.loadbalancer.server.port=8080"
-      - "traefik.http.routers.quarkus-app-http.rule=Host(`faruegonar.beget.app`)"
+      - "traefik.http.routers.quarkus-app-http.rule=Host(`java41.ru`)"
       - "traefik.http.routers.quarkus-app-http.entrypoints=web"
       - "traefik.http.routers.quarkus-app-http.middlewares=redirect-to-https@docker"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"

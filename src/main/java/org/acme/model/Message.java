@@ -17,8 +17,4 @@ public class Message extends PanacheEntity {
 
     public String content;
     public LocalDateTime timestamp;
-
-
-
-
 }

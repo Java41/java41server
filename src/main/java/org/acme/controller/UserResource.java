@@ -17,26 +17,19 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Path("/contacts")
-@Tag(name = "Контакты", description = "Операции, связанные с контактами пользователя")
-public class ContactResource {
+@Path("/users")
+@Tag(name = "Пользователи", description = "Операции для получения списка всех пользователей")
+public class UserResource {
 
     @GET
     @RolesAllowed("User")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Получить всех пользователей", description = "Возвращает список всех зарегистрированных пользователей.")
-    @APIResponse(
-            responseCode = "200",
-            description = "Список всех пользователей",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_JSON,
-                    schema = @Schema(implementation = ContactDTO.class, type = SchemaType.ARRAY)
-            )
-    )
+    @Operation(summary = "Получить список всех пользователей", description = "Возвращает список всех зарегистрированных пользователей для выбора контакта.")
+    @APIResponse(responseCode = "200", description = "Список всех пользователей", content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = ContactDTO.class, type = SchemaType.ARRAY), example = "[{\"id\": 1, \"username\": \"@User123\", \"firstName\": \"John\", \"lastName\": \"Doe\", \"photoUrl\": \"https://example.com/photo.jpg\"}]"))
     public List<ContactDTO> getAllUsers() {
         return User.<User>findAll()
                 .stream()
-                .map(user -> new ContactDTO(user.id, user.username))
+                .map(user -> new ContactDTO(user.id, user.username, user.firstName, user.lastName, user.photoUrl))
                 .collect(Collectors.toList());
     }
 }

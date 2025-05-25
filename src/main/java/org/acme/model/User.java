@@ -30,13 +30,25 @@ public class User extends PanacheEntity {
     @Column(unique = true)
     public String username;
 
-    public static void add(String email, String password, String roles, String birthdate) {
+    @Column(length = 50)
+    public String firstName;
+
+    @Column(length = 50)
+    public String lastName;
+
+    @Column(length = 255)
+    public String photoUrl;
+
+    public static void add(String email, String password, String roles, String birthdate, String firstName, String lastName, String photoUrl) {
         User user = new User();
         user.email = email;
         user.password = BcryptUtil.bcryptHash(password);
         user.roles = roles;
         user.birthdate = birthdate;
         user.username = generateUniqueUsername();
+        user.firstName = firstName;
+        user.lastName = lastName;
+        user.photoUrl = photoUrl;
         user.persist();
     }
 
