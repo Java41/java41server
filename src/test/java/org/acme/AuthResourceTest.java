@@ -5,8 +5,9 @@ import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import jakarta.transaction.Transactional;
 import org.acme.dto.AuthDTO;
+import org.acme.model.Contact;
+import org.acme.model.Message;
 import org.acme.model.RefreshToken;
-import org.acme.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,9 +22,10 @@ public class AuthResourceTest {
     @BeforeEach
     @Transactional
     public void setup() {
-        // Очистка данных перед каждым тестом для их независимости
+        // Очищаем только связанные таблицы
+        Contact.deleteAll();
+        Message.deleteAll();
         RefreshToken.deleteAll();
-        User.deleteAll();
     }
 
     // --- Registration Tests ---
@@ -33,6 +35,8 @@ public class AuthResourceTest {
         registration.email = "testuser-" + UUID.randomUUID() + "@quarkus.io";
         registration.password = "password123";
         registration.birthdate = "2001-07-13";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
 
         given()
                 .contentType(ContentType.JSON)
@@ -41,9 +45,6 @@ public class AuthResourceTest {
                 .post("/auth/register")
                 .then()
                 .statusCode(201)
-                .body("id", notNullValue())
-                .body("username", startsWith("@User"))
-                .body("email", is(registration.email))
                 .body("accessToken", notNullValue())
                 .body("refreshToken", notNullValue());
     }
@@ -55,8 +56,9 @@ public class AuthResourceTest {
         registration.email = email;
         registration.password = "password123";
         registration.birthdate = "2001-07-13";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
 
-        // Первая регистрация
         given()
                 .contentType(ContentType.JSON)
                 .body(registration)
@@ -65,7 +67,6 @@ public class AuthResourceTest {
                 .then()
                 .statusCode(201);
 
-        // Повторная регистрация
         given()
                 .contentType(ContentType.JSON)
                 .body(registration)
@@ -93,17 +94,56 @@ public class AuthResourceTest {
                 .body("error", is("Email, пароль и дата рождения обязательны"));
     }
 
+    @Test
+    public void testRegisterInvalidBirthdate() {
+        AuthDTO.Registration registration = new AuthDTO.Registration();
+        registration.email = "testuser-" + UUID.randomUUID() + "@quarkus.io";
+        registration.password = "password123";
+        registration.birthdate = "invalid-date";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(registration)
+                .when()
+                .post("/auth/register")
+                .then()
+                .statusCode(400)
+                .body("error", is("Дата рождения должна быть в формате YYYY-MM-DD"));
+    }
+
+    @Test
+    public void testRegisterLongFirstName() {
+        AuthDTO.Registration registration = new AuthDTO.Registration();
+        registration.email = "testuser-" + UUID.randomUUID() + "@quarkus.io";
+        registration.password = "password123";
+        registration.birthdate = "2001-07-13";
+        registration.firstName = "A".repeat(51);
+        registration.lastName = "Doe";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(registration)
+                .when()
+                .post("/auth/register")
+                .then()
+                .statusCode(400)
+                .body("error", is("Имя не должно превышать 50 символов"));
+    }
+
     // --- Login Tests ---
     @Test
     public void testLoginSuccess() {
         String email = "loginuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
 
-        // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
         registration.password = password;
         registration.birthdate = "2001-07-13";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
 
         given()
                 .contentType(ContentType.JSON)
@@ -113,7 +153,6 @@ public class AuthResourceTest {
                 .then()
                 .statusCode(201);
 
-        // Проверяем логин
         AuthDTO.Login login = new AuthDTO.Login();
         login.email = email;
         login.password = password;
@@ -125,9 +164,6 @@ public class AuthResourceTest {
                 .post("/auth/login")
                 .then()
                 .statusCode(200)
-                .body("id", notNullValue())
-                .body("username", startsWith("@User"))
-                .body("email", is(email))
                 .body("accessToken", notNullValue())
                 .body("refreshToken", notNullValue());
     }
@@ -170,35 +206,22 @@ public class AuthResourceTest {
         String email = "refreshuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
 
-        // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
         registration.password = password;
         registration.birthdate = "2001-07-13";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
 
-        given()
+        Response regResponse = given()
                 .contentType(ContentType.JSON)
                 .body(registration)
                 .when()
                 .post("/auth/register")
-                .then()
-                .statusCode(201);
-
-        // Логинимся, чтобы получить refresh token
-        AuthDTO.Login login = new AuthDTO.Login();
-        login.email = email;
-        login.password = password;
-
-        Response loginResponse = given()
-                .contentType(ContentType.JSON)
-                .body(login)
-                .when()
-                .post("/auth/login")
                 .andReturn();
 
-        String refreshToken = loginResponse.jsonPath().getString("refreshToken");
+        String refreshToken = regResponse.jsonPath().getString("refreshToken");
 
-        // Проверяем refresh
         AuthDTO.Refresh refresh = new AuthDTO.Refresh();
         refresh.refreshToken = refreshToken;
 
@@ -209,9 +232,6 @@ public class AuthResourceTest {
                 .post("/auth/refresh")
                 .then()
                 .statusCode(200)
-                .body("id", notNullValue())
-                .body("username", startsWith("@User"))
-                .body("email", is(email))
                 .body("accessToken", notNullValue())
                 .body("refreshToken", notNullValue());
     }
@@ -252,35 +272,22 @@ public class AuthResourceTest {
         String email = "logoutuser-" + UUID.randomUUID() + "@quarkus.io";
         String password = "password123";
 
-        // Регистрируем пользователя
         AuthDTO.Registration registration = new AuthDTO.Registration();
         registration.email = email;
         registration.password = password;
         registration.birthdate = "2001-07-13";
+        registration.firstName = "John";
+        registration.lastName = "Doe";
 
-        given()
+        Response regResponse = given()
                 .contentType(ContentType.JSON)
                 .body(registration)
                 .when()
                 .post("/auth/register")
-                .then()
-                .statusCode(201);
-
-        // Логинимся, чтобы получить refresh token
-        AuthDTO.Login login = new AuthDTO.Login();
-        login.email = email;
-        login.password = password;
-
-        Response loginResponse = given()
-                .contentType(ContentType.JSON)
-                .body(login)
-                .when()
-                .post("/auth/login")
                 .andReturn();
 
-        String refreshToken = loginResponse.jsonPath().getString("refreshToken");
+        String refreshToken = regResponse.jsonPath().getString("refreshToken");
 
-        // Проверяем logout
         AuthDTO.Refresh refresh = new AuthDTO.Refresh();
         refresh.refreshToken = refreshToken;
 

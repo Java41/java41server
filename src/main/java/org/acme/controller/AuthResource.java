@@ -23,7 +23,10 @@ import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 @Path("/auth")
 @RequestScoped
@@ -41,7 +44,7 @@ public class AuthResource {
     @Transactional
     @Operation(summary = "Аутентификация пользователя", description = "Позволяет пользователю войти в систему, предоставив email и пароль. Возвращает JWT и refresh-токены.")
     @APIResponse(responseCode = "200", description = "Успешная аутентификация", content = @Content(schema = @Schema(implementation = TokenResponseDTO.class), example = "{\"accessToken\": \"eyJhbG...\", \"refreshToken\": \"f47ac10b-58cc-...\"}"))
-    @APIResponse(responseCode = "400", description = "Отсутствует email или пароль", content = @Content(example = "{\"error\": \"Email и пароль обязательны\"}"))
+    @APIResponse(responseCode = "400", description = "Отсутствуют обязательные поля или неверный формат", content = @Content(example = "{\"error\": \"Email, пароль и дата рождения обязательны\"}"))
     @APIResponse(responseCode = "401", description = "Неверные учетные данные", content = @Content(example = "{\"error\": \"Неверные учетные данные\"}"))
     public Response login(@RequestBody(description = "Учетные данные для входа") AuthDTO.Login login) {
         if (login.email == null || login.password == null) {
@@ -82,7 +85,29 @@ public class AuthResource {
                     .type(MediaType.APPLICATION_JSON)
                     .build();
         }
+        // Валидация формата даты рождения
+        try {
+            LocalDate.parse(registration.birthdate, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"Дата рождения должна быть в формате YYYY-MM-DD\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
 
+        // Валидация длины имени и фамилии
+        if (registration.firstName != null && registration.firstName.length() > 50) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"Имя не должно превышать 50 символов\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+        if (registration.lastName != null && registration.lastName.length() > 50) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"Фамилия не должна превышать 50 символов\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
         if (User.findByEmail(registration.email) != null) {
             return Response.status(Response.Status.CONFLICT)
                     .entity("{\"error\":\"Пользователь с таким email уже существует\"}")

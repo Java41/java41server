@@ -1,25 +1,27 @@
 package org.acme;
 
-import java.util.Arrays;
-import java.util.HashSet;
-
-import org.eclipse.microprofile.jwt.Claims;
-
 import io.smallrye.jwt.build.Jwt;
+import org.acme.model.User;
+import org.acme.util.TokenUtils;
+import jakarta.inject.Inject;
 
-/**
- * A simple utility class to generate and print a JWT token string to stdout.
- */
 public class GenerateToken {
-    /**
-     * Generate JWT token
-     */
+
+    @Inject
+    TokenUtils tokenUtils;
+
     public static void main(String[] args) {
-        String token = Jwt.issuer("https://example.com/issuer")
-                .upn("jdoe@quarkus.io")
-                .groups(new HashSet<>(Arrays.asList("User", "Admin")))
-                .claim(Claims.birthdate.name(), "2001-07-13")
-                .sign();
+        User user = new User();
+        user.id = 1L;
+        user.email = "jdoe@quarkus.io";
+        user.username = "@User123";
+        user.roles = "User";
+        user.birthdate = "2001-07-13";
+        user.firstName = "John";
+        user.lastName = "Doe";
+
+        TokenUtils tokenUtils = new TokenUtils();
+        String token = tokenUtils.generateAccessToken(user);
         System.out.println(token);
         System.exit(0);
     }

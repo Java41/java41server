@@ -39,6 +39,9 @@ public class User extends PanacheEntity {
     @Column(length = 255)
     public String photoUrl;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    public boolean active = true;
+
     public static void add(String email, String password, String roles, String birthdate, String firstName, String lastName, String photoUrl) {
         User user = new User();
         user.email = email;
@@ -49,19 +52,25 @@ public class User extends PanacheEntity {
         user.firstName = firstName;
         user.lastName = lastName;
         user.photoUrl = photoUrl;
+        user.active = true;
         user.persist();
     }
 
     public static User findByEmail(String email) {
-        return find("email", email).firstResult();
+        return find("email = ?1 and active = true", email).firstResult();
     }
 
     public static User findByUsername(String username) {
-        return find("username", username).firstResult();
+        return find("username = ?1 and active = true", username).firstResult();
     }
 
     public static User findById(Long id) {
-        return find("id", id).firstResult();
+        return find("id = ?1 and active = true", id).firstResult();
+    }
+
+    public void deactivate() {
+        this.active = false;
+        this.persist();
     }
 
     private static String generateUniqueUsername() {
